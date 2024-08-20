@@ -1,0 +1,12 @@
+Items: {
+	MichaelsBow: {
+		DisplayName: Michaels Bow
+		Tooltip: ""
+	}
+}
+
+Projectiles: {
+	MProjectile.DisplayName: M Projectile
+	ChickenMissile.DisplayName: Chicken Missile
+	MichaelArrow.DisplayName: Michael Arrow
+}
