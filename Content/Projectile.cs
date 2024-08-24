@@ -10,6 +10,9 @@ using ReLogic.Content;
 using System;
 using static MichaelWeaponsMod.Content.MichaelArrow;
 using System.Collections.Generic;
+using System.Security.Cryptography.X509Certificates;
+using System.Data;
+using Terraria.GameContent.Animations;
 
 namespace MichaelWeaponsMod.Content
 {
@@ -127,12 +130,82 @@ namespace MichaelWeaponsMod.Content
     }
     public class DictUpdater : GlobalNPC
     {
+        private const string AimTexturePath = "MichaelWeaponsMod/Content/AimTexture"; // The folder path to the flail chain sprite
+
+        private static Asset<Texture2D> aimTexture;
+        public override void Load()
+        {
+            aimTexture = ModContent.Request<Texture2D>(AimTexturePath);
+        }
+        public override bool InstancePerEntity => true;
         public override void PostAI(NPC npc)
         {
             foreach (var entry in NPCTracker.npcDictionary)
             {
                 if (entry.Value != 0) { NPCTracker.npcDictionary[entry.Key]--; }
             }
+
+        }
+        public float rot = 0f;
+        public static float pulse = 1f;
+        public override void DrawEffects(NPC npc, ref Color drawColor)
+        {
+            if (!NPCTracker.npcDictionary.ContainsKey(npc)) { return; }
+            if (NPCTracker.npcDictionary[npc] == 0) { return; }
+            var textureToDraw = aimTexture;// your texture here;
+            var radius = Math.Max(npc.height, npc.width);
+            var Radius = radius * 1.4f * pulse;
+            var segments = 5;
+            var Segments = 10;
+            var center = npc.Center;
+            Vector2 origin = new Vector2(textureToDraw.Width() / 2f, textureToDraw.Height() / 2f);// The origin of the texture (center point of the texture)
+            rot += +0.033f;
+
+            // Loop through each segment to draw the texture at each point around the circle
+            if (radius > 0)
+            {
+                for (int i = 0; i < segments; ++i)
+                {
+                    // Calculate the current rotation in radians
+                    float currentRotation = (MathHelper.TwoPi / segments) * i + rot;
+
+                    // Get the offset from the center using the rotation and radius
+                    Vector2 offset = currentRotation.ToRotationVector2() * radius;
+
+                    // Calculate the draw position by adding the offset to the center
+                    Vector2 drawPosition = center + offset;
+
+                    // Draw the texture at the calculated position
+                    DrawingAim(textureToDraw.Value, drawPosition, currentRotation + MathHelper.PiOver2, origin);
+                }
+                for (int i = 0; i < Segments; ++i)
+                {
+                    // Calculate the current rotation in radians
+                    float Rotation = (MathHelper.TwoPi / segments) * i - rot;
+                    // Get the offset from the center using the rotation and radius
+                    Vector2 Offset = Rotation.ToRotationVector2() * Radius;
+
+                    // Calculate the draw position by adding the offset to the center
+                    Vector2 drawPosition = center + Offset;
+
+                    // Draw the texture at the calculated position
+                    DrawingAim(textureToDraw.Value, drawPosition, Rotation + MathHelper.PiOver2, origin);
+                }
+            }
+        }
+        public void DrawingAim(Texture2D texture, Vector2 position, float rotation, Vector2 origin)
+        {
+            Main.spriteBatch.Draw(
+                texture,
+                position - Main.screenPosition,
+                null,
+                Color.White,
+                rotation,
+                origin,
+                1f,
+                SpriteEffects.None,
+                0f
+            );
         }
     }
     public class NPCDictionary : GlobalNPC
@@ -196,7 +269,7 @@ namespace MichaelWeaponsMod.Content
             float maxDistance = 120;
             Projectile.rotation = Projectile.velocity.ToRotation();
             // First, we find a homing target if we don't have one
-            HomingTarget = FindClosestNPC(maxDistance);
+            if (HomingTarget == null) { HomingTarget = FindClosestNPC(maxDistance); }
 
             // If we have a homing target, make sure it is still valid. If the NPC dies or moves away, we'll want to find a new target
             if (HomingTarget != null && !IsValidTarget(HomingTarget))
@@ -279,87 +352,24 @@ namespace MichaelWeaponsMod.Content
             return target.CanBeChasedBy();
         }
         public float rot = 0f;
-        public float pulse = 1f;
-        public float uhhye = 0f;
+        public override bool? CanHitNPC(NPC target)
+        {
+            return DictUpdater.pulse == 1f;
+        }
         public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
         {
-            pulse = 1.05f; uhhye = 0.35f;
+            if (HomingTarget != null && target == HomingTarget) { DictUpdater.pulse = 0.7f; }
         }
         public override bool PreDrawExtras()
         {
             var textureToDraw = aimTexture;// your texture here;
-            var center = new Vector2(0);
-            var radius = 0f;
-            var segments = 0;
-            if (CurrentAIState == AiState.Chasing)
-            {
-                center = HomingTarget.Center;
-                radius = Math.Max((Projectile.ai[2] - 120), 0);
-                segments = 10;
-            }
-            if (uhhye > 0) { pulse += 0.05f; uhhye -= 0.05f; }
-            else { pulse = pulse > 1 ? pulse - 0.032f : 0.999f; }
             var Center = Projectile.Center; // your center position here;
             float Radius = Math.Max(120f - Projectile.ai[2], 0); // The radius of the circle
             int Segments = (int)(Radius / 6); // The number of segments (points) in the circle
-            int Segm = 5;
             Vector2 origin = new Vector2(textureToDraw.Width() / 2f, textureToDraw.Height() / 2f);// The origin of the texture (center point of the texture)
-            rot += +0.033f;
-
+            rot += +0.044f;
+            DictUpdater.pulse = DictUpdater.pulse < 1f ? DictUpdater.pulse + 0.06f : 1f;
             // Loop through each segment to draw the texture at each point around the circle
-            if (radius > 0)
-            {
-                for (int i = 0; i < segments; ++i)
-                {
-                    // Calculate the current rotation in radians
-                    float currentRotation = (MathHelper.TwoPi / segments) * i + rot;
-                    // Get the offset from the center using the rotation and radius
-                    Vector2 offset = currentRotation.ToRotationVector2() * (radius / pulse);
-
-                    // Calculate the draw position by adding the offset to the center
-                    Vector2 drawPosition = center + offset;
-
-                    // Draw the texture at the calculated position
-                    Main.spriteBatch.Draw(
-                        textureToDraw.Value,
-                        drawPosition - Main.screenPosition, // Adjust for screen position
-                        null, // Source rectangle (null means the whole texture)
-                        Color.White, // The color to draw the texture (can be modified)
-                        currentRotation + MathHelper.PiOver2, // Rotation (optional, you can set it to 0 if not needed)
-                        origin, // Origin point (center of the texture)
-                        1f, // Scale
-                        SpriteEffects.None, // Effects (e.g., flipping)
-                        0f // Layer depth
-                    );
-                }
-            }
-            if (radius > 0)
-            {
-                for (int i = 0; i < Segm; ++i)
-                {
-                    // Calculate the current rotation in radians
-                    float currentRotation = (MathHelper.TwoPi / Segm) * i - rot;
-
-                    // Get the offset from the center using the rotation and radius
-                    Vector2 offset = currentRotation.ToRotationVector2() * radius / 1.44f;
-
-                    // Calculate the draw position by adding the offset to the center
-                    Vector2 drawPosition = center + offset;
-
-                    // Draw the texture at the calculated position
-                    Main.spriteBatch.Draw(
-                        textureToDraw.Value,
-                        drawPosition - Main.screenPosition, // Adjust for screen position
-                        null, // Source rectangle (null means the whole texture)
-                        Color.White, // The color to draw the texture (can be modified)
-                        currentRotation + MathHelper.PiOver2, // Rotation (optional, you can set it to 0 if not needed)
-                        origin, // Origin point (center of the texture)
-                        1f, // Scale
-                        SpriteEffects.None, // Effects (e.g., flipping)
-                        0f // Layer depth
-                    );
-                }
-            }
             if (Radius > 0)
             {
                 for (int i = 0; i < Segments; ++i)
