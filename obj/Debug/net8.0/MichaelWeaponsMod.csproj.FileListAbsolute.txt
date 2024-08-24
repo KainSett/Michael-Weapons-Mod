@@ -1,0 +1,5 @@
+C:\Users\Адміністратор\Documents\My Games\Terraria\tModLoader\ModSources\MichaelWeaponsMod\obj\Debug\net8.0\MichaelWeaponsMod.csproj.AssemblyReference.cache
+C:\Users\Адміністратор\Documents\My Games\Terraria\tModLoader\ModSources\MichaelWeaponsMod\obj\Debug\net8.0\MichaelWeaponsMod.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Адміністратор\Documents\My Games\Terraria\tModLoader\ModSources\MichaelWeaponsMod\obj\Debug\net8.0\MichaelWeaponsMod.AssemblyInfoInputs.cache
+C:\Users\Адміністратор\Documents\My Games\Terraria\tModLoader\ModSources\MichaelWeaponsMod\obj\Debug\net8.0\MichaelWeaponsMod.AssemblyInfo.cs
+C:\Users\Адміністратор\Documents\My Games\Terraria\tModLoader\ModSources\MichaelWeaponsMod\obj\Debug\net8.0\MichaelWeaponsMod.csproj.CoreCompileInputs.cache

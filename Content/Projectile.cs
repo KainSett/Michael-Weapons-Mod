@@ -9,6 +9,7 @@ using Microsoft.Xna.Framework.Graphics;
 using ReLogic.Content;
 using System;
 using static MichaelWeaponsMod.Content.MichaelArrow;
+using System.Collections.Generic;
 
 namespace MichaelWeaponsMod.Content
 {
@@ -84,9 +85,9 @@ namespace MichaelWeaponsMod.Content
     {
         public override void SetDefaults()
         {
-            Item.damage = 1;
+            Item.damage = 20;
             Item.DamageType = DamageClass.Ranged;
-            Item.knockBack = 2;
+            Item.knockBack = 3;
             Item.useAnimation = 60;
             Item.useTime = 60;
             Item.useStyle = ItemUseStyleID.Shoot;
@@ -98,7 +99,7 @@ namespace MichaelWeaponsMod.Content
         public override bool? UseItem(Player player)
         {
             var position = CalculateSpawn();
-            var velocity = position.DirectionTo(player.Center) * 10;
+            var velocity = position.DirectionTo(player.Center) * 9;
             Projectile.NewProjectile(player.GetSource_ItemUse(Item), position, velocity, ModContent.ProjectileType<MichaelArrow>(), Item.damage, Item.knockBack, Main.myPlayer, 0, 0, 0);
             return true;
         }
@@ -113,11 +114,37 @@ namespace MichaelWeaponsMod.Content
             switch (triangleIndex)
             {
                 case 0: x = point.X; y = Main.screenPosition.Y; break;
-                case 1: x = Main.screenPosition.X + Main.screenWidth;  y = point.Y; break;
+                case 1: x = Main.screenPosition.X + Main.screenWidth; y = point.Y; break;
                 case 2: x = point.X; y = Main.screenPosition.Y + Main.screenHeight; break;
                 case 3: x = Main.screenPosition.X; y = point.Y; break;
             }
             return position = new Vector2(x, y);
+        }
+    }
+    public static class NPCTracker
+    {
+        public static Dictionary<NPC, int> npcDictionary = new Dictionary<NPC, int>();
+    }
+    public class DictUpdater : GlobalNPC
+    {
+        public override void PostAI(NPC npc)
+        {
+            foreach (var entry in NPCTracker.npcDictionary)
+            {
+                if (entry.Value != 0) { NPCTracker.npcDictionary[entry.Key]--; }
+            }
+        }
+    }
+    public class NPCDictionary : GlobalNPC
+    {
+        public override bool InstancePerEntity => true;
+        public override void AI(NPC npc)
+        {
+            NPCTracker.npcDictionary.TryAdd(npc, 0);
+        }
+        public override void ResetEffects(NPC npc)
+        {
+            if (!npc.active || npc == null) { NPCTracker.npcDictionary.Remove(npc); }
         }
     }
     public class MichaelArrow : ModProjectile
@@ -158,21 +185,18 @@ namespace MichaelWeaponsMod.Content
             Projectile.tileCollide = false;
             Projectile.ignoreWater = true; // Does the projectile's speed be influenced by water?
             Projectile.light = 1f; // How much light emit around the projectile
-            Projectile.timeLeft = 6000; // The live time for the projectile (60 = 1 second, so 600 is 10 seconds)
+            Projectile.timeLeft = 600; // The live time for the projectile (60 = 1 second, so 600 is 10 seconds)
             Projectile.maxPenetrate = -1;
             Projectile.penetrate = -1;
         }
+        public AiState PrevState = AiState.Wandering;
         public override void AI()
         {
             CurrentAIState = AiState.Wandering;
             float maxDistance = 120;
-
             Projectile.rotation = Projectile.velocity.ToRotation();
             // First, we find a homing target if we don't have one
-            if (HomingTarget == null)
-            {
-                HomingTarget = FindClosestNPC(maxDistance);
-            }
+            HomingTarget = FindClosestNPC(maxDistance);
 
             // If we have a homing target, make sure it is still valid. If the NPC dies or moves away, we'll want to find a new target
             if (HomingTarget != null && !IsValidTarget(HomingTarget))
@@ -180,19 +204,24 @@ namespace MichaelWeaponsMod.Content
                 HomingTarget = null;
             }
 
-            if (HomingTarget == null)
-            {
-                return;
-            }
-            CurrentAIState = AiState.Chasing;
+            if (HomingTarget == null) { if (PrevState != AiState.Wandering) { Projectile.Kill(); }; return; }
 
+            CurrentAIState = AiState.Chasing;
             var target = HomingTarget.Center;
             // If found, we rotate the projectile velocity in the direction of the target.
             // We only rotate by 3 degrees an update to give it a smooth trajectory. Increase the rotation speed here to make tighter turns
+
             float length = Projectile.velocity.Length();
             float targetAngle = Projectile.AngleTo(target);
-            Projectile.velocity = Projectile.velocity.ToRotation().AngleTowards(targetAngle, MathHelper.ToRadians(9)).ToRotationVector2() * length;
+            Projectile.velocity = Projectile.velocity.ToRotation().AngleTowards(targetAngle, MathHelper.ToRadians(15)).ToRotationVector2() * length;
             Projectile.rotation = Projectile.velocity.ToRotation();
+            Projectile.ai[2] = Projectile.ai[2] < 110 ? Math.Max(Projectile.ai[2]++, maxDistance - Projectile.Center.Distance(target)) : Projectile.ai[2] + 3;
+            var size = Math.Max(HomingTarget.height, HomingTarget.width);
+            if ((Projectile.ai[2] >= 120f + (size * 1.4f)))
+            {
+                Projectile.ai[2] = 120f + (size * 1.4f);
+            }
+            PrevState = AiState.Chasing;
         }
 
         // Finding the closest NPC to attack within maxDetectDistance range
@@ -216,8 +245,21 @@ namespace MichaelWeaponsMod.Content
                     // Check if it is within the radius
                     if (sqrDistanceToTarget < sqrMaxDetectDistance)
                     {
-                        sqrMaxDetectDistance = sqrDistanceToTarget;
-                        closestNPC = target;
+                        bool IsTrackable = false;
+                        foreach (var npc in NPCTracker.npcDictionary)
+                        {
+                            if (npc.Key == target && npc.Value < Projectile.timeLeft)
+                            {
+                                IsTrackable = true;
+                                NPCTracker.npcDictionary[npc.Key] = Projectile.timeLeft;
+                                break;
+                            }
+                        }
+                        if (IsTrackable)
+                        {
+                            sqrMaxDetectDistance = sqrDistanceToTarget;
+                            closestNPC = target;
+                        }
                     }
                 }
             }
@@ -237,29 +279,99 @@ namespace MichaelWeaponsMod.Content
             return target.CanBeChasedBy();
         }
         public float rot = 0f;
+        public float pulse = 1f;
+        public float uhhye = 0f;
+        public override void OnHitNPC(NPC target, NPC.HitInfo hit, int damageDone)
+        {
+            pulse = 1.05f; uhhye = 0.35f;
+        }
         public override bool PreDrawExtras()
         {
             var textureToDraw = aimTexture;// your texture here;
-            Vector2 center = Projectile.Center;// your center position here;
-            float radius = 120f; // The radius of the circle
-            int segments = 30; // The number of segments (points) in the circle
-                               // The origin of the texture (center point of the texture)
-            Vector2 origin = new Vector2(textureToDraw.Width() / 2f, textureToDraw.Height() / 2f);
-            if (CurrentAIState == AiState.Wandering)
+            var center = new Vector2(0);
+            var radius = 0f;
+            var segments = 0;
+            if (CurrentAIState == AiState.Chasing)
             {
-                rot += 0.04f;
+                center = HomingTarget.Center;
+                radius = Math.Max((Projectile.ai[2] - 120), 0);
+                segments = 10;
+            }
+            if (uhhye > 0) { pulse += 0.05f; uhhye -= 0.05f; }
+            else { pulse = pulse > 1 ? pulse - 0.032f : 0.999f; }
+            var Center = Projectile.Center; // your center position here;
+            float Radius = Math.Max(120f - Projectile.ai[2], 0); // The radius of the circle
+            int Segments = (int)(Radius / 6); // The number of segments (points) in the circle
+            int Segm = 5;
+            Vector2 origin = new Vector2(textureToDraw.Width() / 2f, textureToDraw.Height() / 2f);// The origin of the texture (center point of the texture)
+            rot += +0.033f;
 
-                // Loop through each segment to draw the texture at each point around the circle
+            // Loop through each segment to draw the texture at each point around the circle
+            if (radius > 0)
+            {
                 for (int i = 0; i < segments; ++i)
                 {
                     // Calculate the current rotation in radians
                     float currentRotation = (MathHelper.TwoPi / segments) * i + rot;
-
                     // Get the offset from the center using the rotation and radius
-                    Vector2 offset = currentRotation.ToRotationVector2() * radius;
+                    Vector2 offset = currentRotation.ToRotationVector2() * (radius / pulse);
 
                     // Calculate the draw position by adding the offset to the center
                     Vector2 drawPosition = center + offset;
+
+                    // Draw the texture at the calculated position
+                    Main.spriteBatch.Draw(
+                        textureToDraw.Value,
+                        drawPosition - Main.screenPosition, // Adjust for screen position
+                        null, // Source rectangle (null means the whole texture)
+                        Color.White, // The color to draw the texture (can be modified)
+                        currentRotation + MathHelper.PiOver2, // Rotation (optional, you can set it to 0 if not needed)
+                        origin, // Origin point (center of the texture)
+                        1f, // Scale
+                        SpriteEffects.None, // Effects (e.g., flipping)
+                        0f // Layer depth
+                    );
+                }
+            }
+            if (radius > 0)
+            {
+                for (int i = 0; i < Segm; ++i)
+                {
+                    // Calculate the current rotation in radians
+                    float currentRotation = (MathHelper.TwoPi / Segm) * i - rot;
+
+                    // Get the offset from the center using the rotation and radius
+                    Vector2 offset = currentRotation.ToRotationVector2() * radius / 1.44f;
+
+                    // Calculate the draw position by adding the offset to the center
+                    Vector2 drawPosition = center + offset;
+
+                    // Draw the texture at the calculated position
+                    Main.spriteBatch.Draw(
+                        textureToDraw.Value,
+                        drawPosition - Main.screenPosition, // Adjust for screen position
+                        null, // Source rectangle (null means the whole texture)
+                        Color.White, // The color to draw the texture (can be modified)
+                        currentRotation + MathHelper.PiOver2, // Rotation (optional, you can set it to 0 if not needed)
+                        origin, // Origin point (center of the texture)
+                        1f, // Scale
+                        SpriteEffects.None, // Effects (e.g., flipping)
+                        0f // Layer depth
+                    );
+                }
+            }
+            if (Radius > 0)
+            {
+                for (int i = 0; i < Segments; ++i)
+                {
+                    // Calculate the current rotation in radians
+                    float currentRotation = (MathHelper.TwoPi / Segments) * i + rot;
+
+                    // Get the offset from the center using the rotation and radius
+                    Vector2 offset = currentRotation.ToRotationVector2() * Radius;
+
+                    // Calculate the draw position by adding the offset to the center
+                    Vector2 drawPosition = Center + offset;
 
                     // Draw the texture at the calculated position
                     Main.spriteBatch.Draw(
@@ -274,9 +386,8 @@ namespace MichaelWeaponsMod.Content
                         0f // Layer depth
                     );
                 }
-                return true;
             }
-            return false;
+            return true;
         }
     }
 }

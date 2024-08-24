@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "amBZTIrIT2E=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\Адміністратор\\Documents\\My Games\\Terraria\\tModLoader\\ModSources\\MichaelWeaponsMod\\MichaelWeaponsMod.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Адміністратор\\.nuget\\packages\\tmodloader.codeassist\\0.1.5\\tmodloader.codeassist.0.1.5.nupkg.sha512"
+  ],
+  "logs": []
+}
