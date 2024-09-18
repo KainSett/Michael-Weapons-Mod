@@ -11,6 +11,14 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace MichaelWeaponsMod.Content.Projectiles
 {
+    public class ListOfProjs : GlobalProjectile
+    {
+        public static List<Projectile> ListOfMichaelArrows = new List<Projectile>();
+    }
+    public class ListOfMichaels
+    {
+        public static List<Entity> Michaels = new List<Entity>();
+    }
     public class MichaelArrow : ModProjectile
     {
         private const string AimTexturePath = "MichaelWeaponsMod/Assets/AimTexture"; // The folder path to the flail chain sprite
@@ -22,20 +30,13 @@ namespace MichaelWeaponsMod.Content.Projectiles
         }
         // Store the target NPC using Projectile.ai[0]
         private NPC HomingTarget;
+        public float pulse = 0;
         public enum AiState
         {
             Wandering,
             Chasing
         }
-        public AiState CurrentAIState
-        {
-            get => (AiState)Projectile.ai[0];
-            set => Projectile.ai[0] = (float)value;
-        }
-        public override void SetStaticDefaults()
-        {
-            ProjectileID.Sets.CultistIsResistantTo[Projectile.type] = true; // Make the cultist resistant to this projectile, as it's resistant to all homing projectiles.
-        }
+        public AiState CurrentAIState;
 
         // Setting the default parameters of the projectile
         // You can check most of Fields and Properties here https://github.com/tModLoader/tModLoader/wiki/Projectile-Class-Documentation
@@ -44,27 +45,22 @@ namespace MichaelWeaponsMod.Content.Projectiles
             Projectile.width = 32; // The width of projectile hitbox
             Projectile.height = 14; // The height of projectile hitbox
 
-            Projectile.aiStyle = 0; // The ai style of the projectile (0 means custom AI). For more please reference the source code of Terraria
             Projectile.friendly = true; // Can the projectile deal damage to enemies?
             Projectile.tileCollide = false;
             Projectile.ignoreWater = true; // Does the projectile's speed be influenced by water?
-            Projectile.light = 0f; // How much light emit around the projectile
             Projectile.timeLeft = 600; // The live time for the projectile (60 = 1 second, so 600 is 10 seconds)
-            Projectile.maxPenetrate = -1;
-            Projectile.penetrate = -1;
         }
         public AiState PrevState = AiState.Wandering;
-        // Track the angle around the player (store this as a class variable)
-        float orbitAngle = 0f;
         public override void AI()
         {
             CurrentAIState = AiState.Wandering;
             float maxDistance = 120;
             Projectile.rotation = Projectile.velocity.ToRotation();
             // First, we find a homing target if we don't have one
-            //if (HomingTarget == null) { 
-            HomingTarget = FindClosestNPC(maxDistance);
-            //}
+            if (HomingTarget == null) 
+            { 
+            HomingTarget = FindClosestNPC(Projectile, maxDistance);
+            }
 
             // If we have a homing target, make sure it is still valid. If the NPC dies or moves away, we'll want to find a new target
             if (HomingTarget != null && !IsValidTarget(HomingTarget))
@@ -87,18 +83,18 @@ namespace MichaelWeaponsMod.Content.Projectiles
                 float targetAngle = Projectile.AngleTo(target);
                 Projectile.velocity = Projectile.velocity.ToRotation().AngleTowards(targetAngle, MathHelper.ToRadians(15)).ToRotationVector2() * length;
                 Projectile.rotation = Projectile.velocity.ToRotation();
-                Projectile.ai[2] = Projectile.ai[2] < 110 ? Math.Max(Projectile.ai[2]++, maxDistance - Projectile.Center.Distance(target)) : Projectile.ai[2] + 3;
+                pulse = pulse < 110 ? Math.Max(pulse++, maxDistance - Projectile.Center.Distance(target)) : pulse + 3;
                 var size = Math.Max(HomingTarget.height, HomingTarget.width);
-                if ((Projectile.ai[2] >= 120f + (size * 1.4f)))
+                if ((pulse >= 120f + (size * 1.4f)))
                 {
-                    Projectile.ai[2] = 120f + (size * 1.4f);
+                    pulse = 120f + (size * 1.4f);
                 }
                 PrevState = AiState.Chasing;
             }
         }
         // Finding the closest NPC to attack within maxDetectDistance range
         // If not found then returns null
-        public NPC FindClosestNPC(float maxDetectDistance)
+        public NPC FindClosestNPC(Projectile projectile, float maxDetectDistance)
         {
             NPC closestNPC = null;
 
@@ -112,7 +108,7 @@ namespace MichaelWeaponsMod.Content.Projectiles
                 if (IsValidTarget(target))
                 {
                     // The DistanceSquared function returns a squared distance between 2 points, skipping relatively expensive square root calculations
-                    float sqrDistanceToTarget = Vector2.DistanceSquared(target.Center, Projectile.Center);
+                    float sqrDistanceToTarget = Vector2.DistanceSquared(target.Center, projectile.Center);
 
                     // Check if it is within the radius
                     if (sqrDistanceToTarget < sqrMaxDetectDistance)
@@ -120,10 +116,13 @@ namespace MichaelWeaponsMod.Content.Projectiles
                         bool IsTrackable = false;
                         foreach (var npc in NPCTracker.npcDictionary)
                         {
-                            if (npc.Key == target && npc.Value < Projectile.timeLeft)
+                            if (npc.Key == target)
                             {
                                 IsTrackable = true;
-                                NPCTracker.npcDictionary[npc.Key] = Projectile.timeLeft;
+                                if (npc.Value < projectile.timeLeft)
+                                {
+                                    NPCTracker.npcDictionary[npc.Key] = projectile.timeLeft;
+                                }
                                 break;
                             }
                         }
@@ -155,10 +154,10 @@ namespace MichaelWeaponsMod.Content.Projectiles
         {
             var textureToDraw = aimTexture;// your texture here;
             var Center = Projectile.Center; // your center position here;
-            float Radius = Math.Max(120f - Projectile.ai[2], 0); // The radius of the circle
-            int Segments = (int)(Radius / 6); // The number of segments (points) in the circle
+            float Radius = Math.Max(120f - pulse, 0); // The radius of the circle
+            int Segments = (int)(Radius / 12); // The number of segments (points) in the circle
             Vector2 origin = new Vector2(textureToDraw.Width() / 2f, textureToDraw.Height() / 2f);// The origin of the texture (center point of the texture)
-            rot += +0.044f;
+            rot += +0.05f;
             // Loop through each segment to draw the texture at each point around the circle
             if (Radius > 0)
             {

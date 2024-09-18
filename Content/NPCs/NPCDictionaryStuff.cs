@@ -55,7 +55,6 @@ namespace MichaelWeaponsMod.Content.NPCs.NPCDictionaryStuff
             var textureToDraw = aimTexture;// your texture here;
             var radius = Math.Max(npc.height, npc.width);
             var Radius = radius * 1.4f / (1f + pulse);
-            var segments = 5;
             var Segments = 10;
             var center = npc.Center;
             Vector2 origin = new Vector2(textureToDraw.Width() / 2f, textureToDraw.Height() / 2f);// The origin of the texture (center point of the texture)
@@ -67,21 +66,6 @@ namespace MichaelWeaponsMod.Content.NPCs.NPCDictionaryStuff
             // Loop through each segment to draw the texture at each point around the circle
             if (radius > 0)
             {
-                for (int i = 0; i < segments; ++i)
-                {
-                    // Calculate the current rotation in radians
-                    float currentRotation = (MathHelper.TwoPi / segments) * i + rot;
-
-                    // Get the offset from the center using the rotation and radius
-                    Vector2 offset = currentRotation.ToRotationVector2() * radius;
-
-                    // Calculate the draw position by adding the offset to the center
-                    Vector2 drawPosition = center + offset;
-
-                    // Draw the texture at the calculated position
-                    DrawingAim(textureToDraw.Value, drawPosition, currentRotation + MathHelper.PiOver2, origin);
-                    EmitLight(center, radius);
-                }
                 for (int i = 0; i < Segments; ++i)
                 {
                     // Calculate the current rotation in radians
@@ -106,17 +90,10 @@ namespace MichaelWeaponsMod.Content.NPCs.NPCDictionaryStuff
                 Color.White,
                 rotation,
                 origin,
-                1f,
+                1.3f,
                 SpriteEffects.None,
                 1f
             );
-        }
-        public void EmitLight(Vector2 position, float power)
-        {
-            float r = 0.0022f * power;
-            float g = 0.0041f * power;
-            float b = 0.0067f * power;
-            Lighting.AddLight(position, r, g, b);
         }
     }
 }

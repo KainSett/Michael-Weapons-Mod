@@ -5,6 +5,7 @@ using Microsoft.Xna.Framework;
 using MichaelWeaponsMod.Content.Projectiles;
 using MichaelWeaponsMod.Content.MathStuff;
 using System;
+using Terraria.DataStructures;
 
 namespace MichaelWeaponsMod.Content.Items
 {
@@ -12,12 +13,13 @@ namespace MichaelWeaponsMod.Content.Items
     {
         public override void SetDefaults()
         {
-            Item.damage = 30;
+            Item.damage = 60;
             Item.DamageType = DamageClass.Ranged;
             Item.knockBack = 3;
             Item.useAnimation = 60;
             Item.useTime = 60;
             Item.useStyle = ItemUseStyleID.Shoot;
+            Item.useAmmo = AmmoID.Arrow;
             Item.shootSpeed = 1;
             Item.width = 20;
             Item.height = 50;
@@ -26,8 +28,7 @@ namespace MichaelWeaponsMod.Content.Items
         int timer = 400;
         public override void HoldItem(Player player)
         {
-            timer = timer >= 0 ? timer-- : 400;
-            if (timer == 0)
+            if (timer == 400)
             {
                 var request = new AdvancedPopupRequest();
                 request.Color = Color.White;
@@ -36,7 +37,8 @@ namespace MichaelWeaponsMod.Content.Items
                 request.Velocity = new Vector2(0, 0);
                 var rand = new Random();
                 var Rand = new Random();
-                PopupText.NewText(request, player.MountedCenter + new Vector2(50f * (float)(rand.NextDouble() * 2) - 1, 50f * (float)(Rand.NextDouble() * 2) - 1));
+                PopupText.NewText(request, player.MountedCenter + new Vector2(20f * ((float)(rand.NextDouble() * 2) - 1), 20f * ((float)(Rand.NextDouble() * 2) - 1)));
+                timer = timer >= 0 ? timer-- : 400;
             }
         }
         public bool CanBeUsed = false;
@@ -51,13 +53,12 @@ namespace MichaelWeaponsMod.Content.Items
                 CanBeUsed = false;
             }
         }
-        public override bool? UseItem(Player player)
+        public override bool Shoot(Player player, EntitySource_ItemUse_WithAmmo source, Vector2 position, Vector2 velocity, int type, int damage, float knockback)
         {
             CanBeUsed = true;
-            var position = CalculateSpawn();
-            var velocity = position.DirectionTo(player.Center) * 9;
-            Projectile.NewProjectile(player.GetSource_ItemUse(Item), position, velocity, ModContent.ProjectileType<MichaelArrow>(), Item.damage, Item.knockBack, Main.myPlayer, 0, 0, 0);
-            return true;
+            position = CalculateSpawn();
+            velocity = position.DirectionTo(player.Center) * 9;
+            return base.Shoot(player, source, position, velocity, type, damage, knockback);
         }
         public Vector2 CalculateSpawn()
         {

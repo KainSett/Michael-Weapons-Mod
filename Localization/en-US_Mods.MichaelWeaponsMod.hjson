@@ -3,10 +3,17 @@ Items: {
 		DisplayName: Michaels Bow
 		Tooltip: ""
 	}
+
+	WispBox: {
+		DisplayName: Wisp Box
+		Tooltip: ""
+	}
 }
 
 Projectiles: {
 	MProjectile.DisplayName: M Projectile
 	ChickenMissile.DisplayName: Chicken Missile
 	MichaelArrow.DisplayName: Michael Arrow
+	WispProj.DisplayName: Wisp Proj
+	WispProjectile.DisplayName: Wisp Projectile
 }
