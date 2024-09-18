@@ -30,8 +30,6 @@ namespace MichaelWeaponsMod.Content.Projectiles
             Projectile.tileCollide = false; // Can the projectile collide with tiles?
             Projectile.penetrate = -1; // Look at comments ExamplePiercingProjectile
             Projectile.timeLeft = 2;
-
-            Projectile.alpha = 30;
         }
         // Allows you to determine the color and transparency in which a projectile is drawn
         // Return null to use the default color (normally light and buff color)
@@ -55,10 +53,10 @@ namespace MichaelWeaponsMod.Content.Projectiles
         {
             switch (ThisWisp)
             {
-                case WispType.Red: return new Color(Color.Red.R, Color.Red.G, Color.Red.B, lightColor.A);
+                case WispType.Red: return new Color(Color.IndianRed.R, Color.IndianRed.G, Color.IndianRed.B, lightColor.A);
                 case WispType.Blue: return new Color(Color.LightSkyBlue.R, Color.LightSkyBlue.G, Color.LightSkyBlue.B, lightColor.A);
                 case WispType.Purple: return new Color(Color.Purple.R, Color.Purple.G, Color.Purple.B, lightColor.A);
-                default: return base.GetAlpha(lightColor);
+                default: return lightColor;
             }
         }
         public float Radius = 70f;
@@ -107,12 +105,14 @@ namespace MichaelWeaponsMod.Content.Projectiles
                         Radius += 0.2f;
                     else
                     {
-                        time--;
                         if (ThisWisp == WispType.None)
                         {
+                            time--;
                             if (time <= -120)
                                 ThisWisp = WispType.White;
                         }
+                        else
+                            time = 120;
                     }
                     break;
             }
