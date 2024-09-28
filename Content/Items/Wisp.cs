@@ -37,45 +37,24 @@ namespace MichaelWeaponsMod.Content.Items
     }
     public class WispPlayer : ModPlayer
     {
-        public int FramesToRun = 0;
         public Dictionary<int, int> Buffs = [];
-        public Dictionary<int, int> Debuffs = [];
+        public Dictionary<int, int> WispBuffs = [];
+        public int FramesToRun = 1;
         public override void PostUpdateBuffs()
         {
-            switch (FramesToRun)
+            foreach(var type in Buffs)
             {
-                case 0:
-                    Buffs.Clear();
-                    Debuffs.Clear();
-                    return;
-                case 1:
-                    BuffInfinityCheck(Player, Buffs, Debuffs);
-                    break;
-                default:
-                    break;
-            }
-            FramesToRun--;
-        }
-        public void BuffInfinityCheck(Player self, Dictionary<int, int> buffs, Dictionary<int, int> debuffs)
-        {
-            foreach (var buff in buffs)
-            {
-                int index = self.buffType.ToList().FindIndex(type => type == buff.Key);
-                if (index != -1)
+                if (FramesToRun == 1) {
+                    FramesToRun = 0;
+                    return; }
+
+                for(int i = Player.buffType.Length; i > 0; i--)
                 {
-                    if (self.buffTime[index] >= buff.Value)
-                        buffs[buff.Key] = 0;
+                    if (Player.buffType[i] == type.Key && Player.buffTime[i] >= type.Value)
+                        Buffs.Remove(type.Key);
                 }
             }
-            foreach (var debuff in debuffs)
-            {
-                int index = self.buffType.ToList().FindIndex(type => type == debuff.Key);
-                if (index != -1)
-                {
-                    if (self.buffTime[index] >= debuff.Value)
-                        debuffs[debuff.Key] = 0;
-                }
-            }
+            FramesToRun = 1;
         }
         public override void PostHurt(Player.HurtInfo info)
         {
@@ -97,15 +76,15 @@ namespace MichaelWeaponsMod.Content.Items
             else
             {
                 int color;
-                if (Main.debuff[type]) {
+                if (Main.debuff[type])
                     color = 0;
-                    Debuffs.Add(type, time);}
-                else {
+                else
                     color = 1;
-                    Buffs.Add(type, time); }
-                FramesToRun = 2;
 
                 var num = 1;
+                Buffs.Add(type, time);
+                WispBuffs.Add(num, type);
+
                 foreach (var proj in Main.ActiveProjectiles)
                 {
                     if (Main.player[proj.owner] == self && proj.type == ModContent.ProjectileType<WispProjectileAdittional>())

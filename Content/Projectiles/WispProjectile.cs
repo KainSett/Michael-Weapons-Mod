@@ -1,7 +1,9 @@
+using Iced.Intel;
 using MichaelWeaponsMod.Content.Items;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using ReLogic.Content;
+using System;
 using System.Collections.Generic;
 using System.IO.Compression;
 using System.Linq;
@@ -68,7 +70,6 @@ namespace MichaelWeaponsMod.Content.Projectiles
             var player = Main.player[Projectile.owner];
             int dustType;
             int allowed;
-
             switch (ThisWisp)
             {
                 case WispType.Green:
@@ -79,6 +80,17 @@ namespace MichaelWeaponsMod.Content.Projectiles
                     dustType = DustID.PurpleTorch;
                     allowed = 2;
                     break;
+            }
+
+            if (Projectile.timeLeft < 500)
+            {
+                var WispTypeDict = player.GetModPlayer<WispPlayer>().WispBuffs;
+                var TypeTimeDict = player.GetModPlayer<WispPlayer>().Buffs;
+                int buffTime;
+                int buffType;
+                buffType = WispTypeDict[(int)Projectile.ai[2]];
+                buffTime = TypeTimeDict[buffType] / 2;
+                CustomCollisionLogic(Projectile.getRect(), allowed, buffType, buffTime);
             }
 
             //Getting the total amount of orbiting projectiles of this type
@@ -107,7 +119,7 @@ namespace MichaelWeaponsMod.Content.Projectiles
             target = Closest(Projectile.Center, 220 * 220, allowed);
 
             //Handling movement
-            if (target == new Vector2(0, 0) || Projectile.timeLeft > 480) {
+            if (target == new Vector2(0, 0) || Projectile.timeLeft > 500) {
                 Projectile.velocity = OrbitMovement(player.Center, Projectile.Center, Radius, total, (int)Projectile.ai[2]);
                 ThisState = WispState.Orbiting; }
             else {
@@ -186,9 +198,25 @@ namespace MichaelWeaponsMod.Content.Projectiles
 
             return target;
         }
-        public void CustomCollisionLogic(Vector2 position, Rectangle projRect)
+        public void CustomCollisionLogic(Rectangle projRect, int allowed, int type, int time)
         {
-
+            //allowed = 1 for only players, 2 for only npc's, 0 for both
+            if (allowed != 1)
+            {
+                foreach (var npc in Main.npc)
+                {
+                    if (Projectile.Colliding(projRect, npc.getRect()))
+                        npc.AddBuff(type, time);
+                }
+            }
+            if (allowed != 2)
+            {
+                foreach (var player in Main.player)
+                {
+                    if (Projectile.Colliding(projRect, player.getRect()))
+                        player.AddBuff(type, time);
+                }
+            }
         }
         public override bool PreDraw(ref Color lightColor)
         {
