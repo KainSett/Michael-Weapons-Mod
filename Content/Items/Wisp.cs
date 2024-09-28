@@ -48,10 +48,18 @@ namespace MichaelWeaponsMod.Content.Items
                     FramesToRun = 0;
                     return; }
 
-                for(int i = Player.buffType.Length; i > 0; i--)
+                for (int i = Player.buffType.Length; i > 0; i--)
                 {
                     if (Player.buffType[i] == type.Key && Player.buffTime[i] >= type.Value)
+                    {
                         Buffs.Remove(type.Key);
+                        foreach (var wisp in WispBuffs)
+                        {
+                            if (wisp.Value == type.Key)
+                                WispBuffs.Remove(wisp.Key);
+                            break;
+                        }
+                    }
                 }
             }
             FramesToRun = 1;
