@@ -37,6 +37,46 @@ namespace MichaelWeaponsMod.Content.Items
     }
     public class WispPlayer : ModPlayer
     {
+        public int FramesToRun = 0;
+        public Dictionary<int, int> Buffs = [];
+        public Dictionary<int, int> Debuffs = [];
+        public override void PostUpdateBuffs()
+        {
+            switch (FramesToRun)
+            {
+                case 0:
+                    Buffs.Clear();
+                    Debuffs.Clear();
+                    return;
+                case 1:
+                    BuffInfinityCheck(Player, Buffs, Debuffs);
+                    break;
+                default:
+                    break;
+            }
+            FramesToRun--;
+        }
+        public void BuffInfinityCheck(Player self, Dictionary<int, int> buffs, Dictionary<int, int> debuffs)
+        {
+            foreach (var buff in buffs)
+            {
+                int index = self.buffType.ToList().FindIndex(type => type == buff.Key);
+                if (index != -1)
+                {
+                    if (self.buffTime[index] >= buff.Value)
+                        buffs[buff.Key] = 0;
+                }
+            }
+            foreach (var debuff in debuffs)
+            {
+                int index = self.buffType.ToList().FindIndex(type => type == debuff.Key);
+                if (index != -1)
+                {
+                    if (self.buffTime[index] >= debuff.Value)
+                        debuffs[debuff.Key] = 0;
+                }
+            }
+        }
         public override void PostHurt(Player.HurtInfo info)
         {
             LevelUpWisp(WispType.Red);
@@ -47,29 +87,33 @@ namespace MichaelWeaponsMod.Content.Items
         }
         public override void Load()
         {
-            Terraria.On_Player.AddBuff_DetermineBuffTimeToAdd += WispBuffCheck;
+            Terraria.On_Player.AddBuff_ActuallyTryToAddTheBuff += WispBuffCheck;
         }
 
-        private static int WispBuffCheck(On_Player.orig_AddBuff_DetermineBuffTimeToAdd orig, Player self, int type, int time1)
+        private bool WispBuffCheck(On_Player.orig_AddBuff_ActuallyTryToAddTheBuff orig, Player self, int type, int time)
         {
-            int buffTime = orig(self, type, time1);
-            if (time1 <= 3)
-                return time1;
-
-            int color;
-            if (Main.debuff[type])
-                color = 4;
+            if (time <= 3)
+                return orig(self, type, time);
             else
-                color = 5;
-
-            var num = 1;
-            foreach (var proj in Main.ActiveProjectiles)
             {
-                if (Main.player[proj.owner] == self && proj.type == ModContent.ProjectileType<WispProjectile>())
-                    num++;
+                int color;
+                if (Main.debuff[type]) {
+                    color = 0;
+                    Debuffs.Add(type, time);}
+                else {
+                    color = 1;
+                    Buffs.Add(type, time); }
+                FramesToRun = 2;
+
+                var num = 1;
+                foreach (var proj in Main.ActiveProjectiles)
+                {
+                    if (Main.player[proj.owner] == self && proj.type == ModContent.ProjectileType<WispProjectileAdittional>())
+                        num++;
+                }
+                Projectile.NewProjectile(self.GetSource_FromThis(), self.MountedCenter, new Microsoft.Xna.Framework.Vector2(0, 0), ModContent.ProjectileType<WispProjectileAdittional>(), 0, 0, self.whoAmI, 0, color, num);
+                return orig(self, type, time);
             }
-            Projectile.NewProjectile(self.GetSource_FromThis(), self.MountedCenter, new Microsoft.Xna.Framework.Vector2(0, 0), ModContent.ProjectileType<WispProjectile>(), 0, 0, self.whoAmI, 0, color, num);
-            return time1;
         }
         public WispProjectile LevelUpWisp(WispType type)
         {
