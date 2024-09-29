@@ -84,13 +84,15 @@ namespace MichaelWeaponsMod.Content.Projectiles
 
             if (Projectile.timeLeft < 500)
             {
-                var WispTypeDict = player.GetModPlayer<WispPlayer>().WispBuffs;
-                var TypeTimeDict = player.GetModPlayer<WispPlayer>().Buffs;
-                int buffTime;
-                int buffType;
-                buffType = WispTypeDict[(int)Projectile.ai[2]];
-                buffTime = TypeTimeDict[buffType] / 2;
-                CustomCollisionLogic(Projectile.getRect(), allowed, buffType, buffTime);
+                var Buffs = player.GetModPlayer<WispPlayer>().Buffs;
+                foreach (var member in Buffs)
+                {
+                    if (member.Value.Num == (int)Projectile.ai[2])
+                    {
+                        CustomCollisionLogic(Projectile.getRect(), allowed, Buffs, member);
+                        break;
+                    }
+                }
             }
 
             //Getting the total amount of orbiting projectiles of this type
@@ -198,23 +200,27 @@ namespace MichaelWeaponsMod.Content.Projectiles
 
             return target;
         }
-        public void CustomCollisionLogic(Rectangle projRect, int allowed, int type, int time)
+        public void CustomCollisionLogic(Rectangle projRect, int allowed, Dictionary<int, WispPlayer.TwoInts> dict, KeyValuePair<int, WispPlayer.TwoInts> member)
         {
+            var type = member.Key;
+            var time = member.Value.Time;
             //allowed = 1 for only players, 2 for only npc's, 0 for both
             if (allowed != 1)
             {
-                foreach (var npc in Main.npc)
-                {
-                    if (Projectile.Colliding(projRect, npc.getRect()))
-                        npc.AddBuff(type, time);
-                }
+                int index = Array.FindIndex(Main.npc, target => Projectile.Colliding(projRect, target.getRect()) && target.active);
+                if (index != -1) {
+                    Main.npc[index].AddBuff(type, time);
+                    dict.Remove(type);
+                    Projectile.Kill(); }
             }
             if (allowed != 2)
             {
-                foreach (var player in Main.player)
+                int index = Array.FindIndex(Main.player, target => Projectile.Colliding(projRect, target.getRect()) && target.active);
+                if (index != -1)
                 {
-                    if (Projectile.Colliding(projRect, player.getRect()))
-                        player.AddBuff(type, time);
+                    Main.player[index].AddBuff(type, time);
+                    dict.Remove(type);
+                    Projectile.Kill();
                 }
             }
         }

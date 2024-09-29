@@ -37,8 +37,8 @@ namespace MichaelWeaponsMod.Content.Items
     }
     public class WispPlayer : ModPlayer
     {
-        public Dictionary<int, int> Buffs = [];
-        public Dictionary<int, int> WispBuffs = [];
+        public record struct TwoInts(int Time, int Num);
+        public Dictionary<int, TwoInts> Buffs = [];
         public int FramesToRun = 1;
         public override void PostUpdateBuffs()
         {
@@ -48,19 +48,20 @@ namespace MichaelWeaponsMod.Content.Items
                     FramesToRun = 0;
                     return; }
 
-                for (int i = Player.buffType.Length; i > 0; i--)
+                int color;
+                if (Main.debuff[type.Key])
+                    color = 0;
+                else
+                    color = 1;
+
+                int index = Array.FindIndex(Player.buffType, buff => buff == type.Key);
+
+                if (index != -1 && Player.buffTime[index] >= type.Value.Time)
                 {
-                    if (Player.buffType[i] == type.Key && Player.buffTime[i] >= type.Value)
-                    {
-                        Buffs.Remove(type.Key);
-                        foreach (var wisp in WispBuffs)
-                        {
-                            if (wisp.Value == type.Key)
-                                WispBuffs.Remove(wisp.Key);
-                            break;
-                        }
-                    }
+                    Buffs.Remove(type.Key);
                 }
+                else
+                    Projectile.NewProjectile(Player.GetSource_FromThis(), Player.MountedCenter, new Microsoft.Xna.Framework.Vector2(0, 0), ModContent.ProjectileType<WispProjectileAdittional>(), 0, 0, Player.whoAmI, 0, color, Buffs[type.Key].Num);
             }
             FramesToRun = 1;
         }
@@ -83,22 +84,15 @@ namespace MichaelWeaponsMod.Content.Items
                 return orig(self, type, time);
             else
             {
-                int color;
-                if (Main.debuff[type])
-                    color = 0;
-                else
-                    color = 1;
-
                 var num = 1;
-                Buffs.Add(type, time);
-                WispBuffs.Add(num, type);
 
                 foreach (var proj in Main.ActiveProjectiles)
                 {
                     if (Main.player[proj.owner] == self && proj.type == ModContent.ProjectileType<WispProjectileAdittional>())
                         num++;
                 }
-                Projectile.NewProjectile(self.GetSource_FromThis(), self.MountedCenter, new Microsoft.Xna.Framework.Vector2(0, 0), ModContent.ProjectileType<WispProjectileAdittional>(), 0, 0, self.whoAmI, 0, color, num);
+                if (!Buffs.ContainsKey(type))
+                    Buffs.Add(type, new TwoInts(time, num));
                 return orig(self, type, time);
             }
         }
